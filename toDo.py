@@ -14,22 +14,21 @@ KV = '''
 BoxLayout:
     orientation: 'vertical'
     padding: 20
-    spacing: 10
+    spacing: 15
 
     MDLabel:
-        text: "📓 Lista de Tarefas"
+        text: "✔ Lista de Tarefas"
         font_style: "H5"
         halign: "center"
-        size_hint_y: None
-        height: self.texture_size[1]
+        theme_text_color: "Primary"
 
     MDBoxLayout:
         orientation: 'vertical'
         spacing: 10
-        padding: [20, 10]
+        padding: [20, 15]
         size_hint_y: None
-        height: "130dp"
-        md_bg_color: app.theme_cls.bg_darkest
+        height: "140dp"
+        md_bg_color: app.theme_cls.bg_normal  # Fundo cinza claro minimalista
 
         MDTextField:
             id: entrada_tarefa
@@ -39,23 +38,19 @@ BoxLayout:
         MDBoxLayout:
             spacing: 10
             size_hint_y: None
-            height: "40dp"
+            height: "50dp"
 
             MDRaisedButton:
                 text: "Escolher Data"
                 size_hint_x: 0.5
+                md_bg_color: app.theme_cls.primary_color
                 on_release: app.mostrar_seletor_data()
 
             MDRaisedButton:
-                text: "Hoje"
-                size_hint_x: 0.3
-                on_release: app.definir_hoje()
-
-    MDRaisedButton:
-        text: "Adicionar Tarefa"
-        pos_hint: {'center_x': 0.5}
-        size_hint_x: 0.7
-        on_release: app.adicionar_tarefa()
+                text: "Adicionar"
+                size_hint_x: 0.5
+                md_bg_color: app.theme_cls.primary_color
+                on_release: app.adicionar_tarefa()
 
     ScrollView:
         MDList:
@@ -80,13 +75,13 @@ class ItemTarefa(OneLineAvatarIconListItem):
 class CheckboxTarefa(IRightBodyTouch, MDCheckbox):
     pass
 
-class toDoApp(MDApp):
+class ToDoApp(MDApp):
     data_selecionada = None
     tarefa_em_edicao = None
     theme_cls = ThemeManager()
 
     def build(self):
-        self.theme_cls.primary_palette = "BlueGray"
+        self.theme_cls.primary_palette = "Blue"
         self.theme_cls.theme_style = "Light"
         return Builder.load_string(KV)
 
@@ -98,9 +93,6 @@ class toDoApp(MDApp):
     def salvar_data(self, instance, valor, intervalo_datas):
         self.data_selecionada = valor.strftime("%d/%m/%Y")
 
-    def definir_hoje(self):
-        self.data_selecionada = datetime.now().strftime("%d/%m/%Y")
-
     def adicionar_tarefa(self):
         texto_tarefa = self.root.ids.entrada_tarefa.text.strip()
         if texto_tarefa:
@@ -108,7 +100,7 @@ class toDoApp(MDApp):
             tarefa = ItemTarefa(texto=texto_tarefa, data=data)
             self.root.ids.lista_tarefas.add_widget(tarefa)
             self.root.ids.entrada_tarefa.text = ""
-            self.data_selecionada = None
+            self.data_selecionada = None  
 
     def mostrar_dialogo_edicao(self, item_tarefa):
         self.tarefa_em_edicao = item_tarefa
@@ -151,4 +143,4 @@ class toDoApp(MDApp):
         self.dialogo.dismiss()
 
 if __name__ == "__main__":
-    toDoApp().run()
+    ToDoApp().run()
