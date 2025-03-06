@@ -8,6 +8,7 @@ from kivymd.uix.textfield import MDTextField
 from kivymd.uix.pickers import MDDatePicker
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.theming import ThemeManager
+from kivy.metrics import dp
 from datetime import datetime
 
 KV = '''
@@ -28,7 +29,7 @@ BoxLayout:
         padding: [20, 15]
         size_hint_y: None
         height: "140dp"
-        md_bg_color: app.theme_cls.bg_normal  # Fundo cinza claro minimalista
+        md_bg_color: app.theme_cls.bg_normal
 
         MDTextField:
             id: entrada_tarefa
@@ -104,9 +105,12 @@ class ToDoApp(MDApp):
 
     def mostrar_dialogo_edicao(self, item_tarefa):
         self.tarefa_em_edicao = item_tarefa
-        conteudo = MDBoxLayout(orientation="vertical", spacing=10)
 
-        self.campo_texto_edicao = MDTextField(text=item_tarefa.texto_tarefa)
+        
+        conteudo = MDBoxLayout(orientation="vertical", spacing=20, padding=[10, 10, 10, 10], size_hint_y=None)
+        conteudo.height = dp(150)
+
+        self.campo_texto_edicao = MDTextField(text=item_tarefa.texto_tarefa, hint_text="Editar tarefa", size_hint_y=None, height=dp(50))
         self.botao_data_edicao = MDRaisedButton(text=f"Data: {item_tarefa.data_tarefa}", on_release=self.mostrar_seletor_data_edicao)
 
         conteudo.add_widget(self.campo_texto_edicao)
@@ -119,7 +123,9 @@ class ToDoApp(MDApp):
             buttons=[
                 MDRaisedButton(text="Salvar", on_release=lambda x: self.salvar_edicao(item_tarefa)),
                 MDRaisedButton(text="Cancelar", on_release=lambda x: self.dialogo.dismiss())
-            ]
+            ],
+            size_hint=(0.8, None),  
+            height=dp(250)  
         )
         self.dialogo.open()
 
