@@ -10,24 +10,21 @@ from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.dialog import MDDialog
 from kivymd.theming import ThemeManager
 from kivy.metrics import dp
-from datetime import datetime
 
 class ItemTarefa(OneLineAvatarIconListItem):
-    def __init__(self, texto, data, tarefa_id, **kwargs):
+    def __init__(self, texto, data, tarefa_id, excluir_callback, **kwargs):
         super().__init__(text=f"{texto} ({data})", **kwargs)
         self.texto_tarefa = texto
         self.data_tarefa = data
         self.tarefa_id = tarefa_id
-        self.orientation = "horizontal"
-
+        self.excluir_callback = excluir_callback
         self.checkbox = CheckboxTarefa()
         self.add_widget(self.checkbox)
-
         self.bind(on_release=self.editar_tarefa)
 
     def editar_tarefa(self, *args):
         app = MDApp.get_running_app()
-        app.mostrar_dialogo_edicao(self)
+        app.mostrar_modal_edicao(self)
 
     def atualizar_texto(self):
         self.text = f"{self.texto_tarefa} ({self.data_tarefa})"
@@ -64,13 +61,8 @@ class ToDoApp(MDApp):
     def carregar_tarefas(self):
         self.cursor.execute("SELECT * FROM tarefas")
         tarefas = self.cursor.fetchall()
-
         for tarefa in tarefas:
-            tarefa_item = ItemTarefa(
-                texto=tarefa[1], 
-                data=tarefa[2], 
-                tarefa_id=tarefa[0]
-            )
+            tarefa_item = ItemTarefa(texto=tarefa[1], data=tarefa[2], tarefa_id=tarefa[0], excluir_callback=self.excluir_tarefa)
             self.root.ids.lista_tarefas.add_widget(tarefa_item)
 
     def mostrar_seletor_data(self):
@@ -88,39 +80,43 @@ class ToDoApp(MDApp):
             self.cursor.execute("INSERT INTO tarefas (texto, data) VALUES (?, ?)", (texto_tarefa, data))
             self.conn.commit()
             tarefa_id = self.cursor.lastrowid
-            tarefa = ItemTarefa(
-                texto=texto_tarefa, 
-                data=data, 
-                tarefa_id=tarefa_id
-            )
+            tarefa = ItemTarefa(texto=texto_tarefa, data=data, tarefa_id=tarefa_id, excluir_callback=self.excluir_tarefa)
             self.root.ids.lista_tarefas.add_widget(tarefa)
             self.root.ids.entrada_tarefa.text = ""
             self.data_selecionada = None  
 
-    def mostrar_dialogo_edicao(self, item_tarefa):
-        self.tarefa_em_edicao = item_tarefa
+    def excluir_tarefa(self, item_tarefa):
+        self.cursor.execute("DELETE FROM tarefas WHERE id = ?", (item_tarefa.tarefa_id,))
+        self.conn.commit()
+        self.root.ids.lista_tarefas.remove_widget(item_tarefa)
 
+    def mostrar_modal_edicao(self, item_tarefa):
+        self.tarefa_em_edicao = item_tarefa
         conteudo = MDBoxLayout(orientation="vertical", spacing=20, padding=[10, 10, 10, 10], size_hint_y=None)
         conteudo.height = dp(150)
-
+        
         self.campo_texto_edicao = MDTextField(text=item_tarefa.texto_tarefa, hint_text="Editar tarefa", size_hint_y=None, height=dp(50))
         self.botao_data_edicao = MDRaisedButton(text=f"Data: {item_tarefa.data_tarefa}", on_release=self.mostrar_seletor_data_edicao)
-
         conteudo.add_widget(self.campo_texto_edicao)
         conteudo.add_widget(self.botao_data_edicao)
 
-        self.dialogo = MDDialog(
+        self.modal = MDDialog(
             title="Editar Tarefa",
             type="custom",
             content_cls=conteudo,
             buttons=[
                 MDRaisedButton(text="Salvar", on_release=lambda x: self.salvar_edicao(item_tarefa)),
-                MDRaisedButton(text="Cancelar", on_release=lambda x: self.dialogo.dismiss())
+                MDRaisedButton(text="Cancelar", on_release=lambda x: self.modal.dismiss()),
+                MDRaisedButton(text="Excluir", md_bg_color=(1, 0, 0, 1), on_release=lambda x: self.excluir_tarefa_modal(item_tarefa))
             ],
             size_hint=(0.8, None),
             height=dp(250)
         )
-        self.dialogo.open()
+        self.modal.open()
+
+    def excluir_tarefa_modal(self, item_tarefa):
+        self.excluir_tarefa(item_tarefa)
+        self.modal.dismiss()
 
     def mostrar_seletor_data_edicao(self, instance):
         seletor_data = MDDatePicker()
@@ -133,16 +129,13 @@ class ToDoApp(MDApp):
     def salvar_edicao(self, item_tarefa):
         novo_texto = self.campo_texto_edicao.text.strip()
         nova_data = self.botao_data_edicao.text.replace("Data: ", "")
-
         if novo_texto:
             item_tarefa.texto_tarefa = novo_texto
             item_tarefa.data_tarefa = nova_data
             item_tarefa.atualizar_texto()
-
             self.cursor.execute("UPDATE tarefas SET texto = ?, data = ? WHERE id = ?", (novo_texto, nova_data, item_tarefa.tarefa_id))
             self.conn.commit()
-
-        self.dialogo.dismiss()
+        self.modal.dismiss()
 
     def on_stop(self):
         self.conn.close()
