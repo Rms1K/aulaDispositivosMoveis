@@ -1,0 +1,45 @@
+BoxLayout:
+    orientation: 'vertical'
+    padding: 20
+    spacing: 15
+
+    MDLabel:
+        text: "✔ Lista de Tarefas"
+        font_style: "H5"
+        halign: "center"
+        theme_text_color: "Primary"
+
+    MDBoxLayout:
+        orientation: 'vertical'
+        spacing: 10
+        padding: [20, 15]
+        size_hint_y: None
+        height: "140dp"
+        md_bg_color: app.theme_cls.bg_normal
+
+        MDTextField:
+            id: entrada_tarefa
+            hint_text: "Digite uma tarefa"
+            mode: "rectangle"
+
+        MDBoxLayout:
+            spacing: 10
+            size_hint_y: None
+            height: "50dp"
+
+            MDRaisedButton:
+                text: "Escolher Data"
+                size_hint_x: 0.5
+                md_bg_color: app.theme_cls.primary_color
+                on_release: app.mostrar_seletor_data()
+
+            MDRaisedButton:
+                text: "Adicionar"
+                size_hint_x: 0.5
+                md_bg_color: app.theme_cls.primary_color
+                on_release: app.adicionar_tarefa()
+
+    ScrollView:
+        MDList:
+            id: lista_tarefas
+            spacing: 10  

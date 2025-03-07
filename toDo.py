@@ -1,69 +1,28 @@
+import sqlite3
 from kivy.lang import Builder
 from kivymd.app import MDApp
 from kivymd.uix.list import OneLineAvatarIconListItem, IRightBodyTouch
 from kivymd.uix.selectioncontrol import MDCheckbox
-from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDRaisedButton
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.pickers import MDDatePicker
 from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.dialog import MDDialog
 from kivymd.theming import ThemeManager
 from kivy.metrics import dp
 from datetime import datetime
 
-KV = '''
-BoxLayout:
-    orientation: 'vertical'
-    padding: 20
-    spacing: 15
-
-    MDLabel:
-        text: "✔ Lista de Tarefas"
-        font_style: "H5"
-        halign: "center"
-        theme_text_color: "Primary"
-
-    MDBoxLayout:
-        orientation: 'vertical'
-        spacing: 10
-        padding: [20, 15]
-        size_hint_y: None
-        height: "140dp"
-        md_bg_color: app.theme_cls.bg_normal
-
-        MDTextField:
-            id: entrada_tarefa
-            hint_text: "Digite uma tarefa"
-            mode: "rectangle"
-
-        MDBoxLayout:
-            spacing: 10
-            size_hint_y: None
-            height: "50dp"
-
-            MDRaisedButton:
-                text: "Escolher Data"
-                size_hint_x: 0.5
-                md_bg_color: app.theme_cls.primary_color
-                on_release: app.mostrar_seletor_data()
-
-            MDRaisedButton:
-                text: "Adicionar"
-                size_hint_x: 0.5
-                md_bg_color: app.theme_cls.primary_color
-                on_release: app.adicionar_tarefa()
-
-    ScrollView:
-        MDList:
-            id: lista_tarefas
-'''
-
 class ItemTarefa(OneLineAvatarIconListItem):
-    def __init__(self, texto, data, **kwargs):
+    def __init__(self, texto, data, tarefa_id, **kwargs):
         super().__init__(text=f"{texto} ({data})", **kwargs)
         self.texto_tarefa = texto
         self.data_tarefa = data
-        self.add_widget(CheckboxTarefa())
+        self.tarefa_id = tarefa_id
+        self.orientation = "horizontal"
+
+        self.checkbox = CheckboxTarefa()
+        self.add_widget(self.checkbox)
+
         self.bind(on_release=self.editar_tarefa)
 
     def editar_tarefa(self, *args):
@@ -84,7 +43,35 @@ class ToDoApp(MDApp):
     def build(self):
         self.theme_cls.primary_palette = "Blue"
         self.theme_cls.theme_style = "Light"
-        return Builder.load_string(KV)
+        self.criar_banco_de_dados()
+        return Builder.load_file("toDo.kv")
+
+    def on_start(self):
+        self.carregar_tarefas()
+
+    def criar_banco_de_dados(self):
+        self.conn = sqlite3.connect("tarefas.db")
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tarefas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                texto TEXT,
+                data TEXT
+            )
+        """)
+        self.conn.commit()
+
+    def carregar_tarefas(self):
+        self.cursor.execute("SELECT * FROM tarefas")
+        tarefas = self.cursor.fetchall()
+
+        for tarefa in tarefas:
+            tarefa_item = ItemTarefa(
+                texto=tarefa[1], 
+                data=tarefa[2], 
+                tarefa_id=tarefa[0]
+            )
+            self.root.ids.lista_tarefas.add_widget(tarefa_item)
 
     def mostrar_seletor_data(self):
         seletor_data = MDDatePicker()
@@ -98,7 +85,14 @@ class ToDoApp(MDApp):
         texto_tarefa = self.root.ids.entrada_tarefa.text.strip()
         if texto_tarefa:
             data = self.data_selecionada if self.data_selecionada else "Sem data"
-            tarefa = ItemTarefa(texto=texto_tarefa, data=data)
+            self.cursor.execute("INSERT INTO tarefas (texto, data) VALUES (?, ?)", (texto_tarefa, data))
+            self.conn.commit()
+            tarefa_id = self.cursor.lastrowid
+            tarefa = ItemTarefa(
+                texto=texto_tarefa, 
+                data=data, 
+                tarefa_id=tarefa_id
+            )
             self.root.ids.lista_tarefas.add_widget(tarefa)
             self.root.ids.entrada_tarefa.text = ""
             self.data_selecionada = None  
@@ -106,7 +100,6 @@ class ToDoApp(MDApp):
     def mostrar_dialogo_edicao(self, item_tarefa):
         self.tarefa_em_edicao = item_tarefa
 
-        
         conteudo = MDBoxLayout(orientation="vertical", spacing=20, padding=[10, 10, 10, 10], size_hint_y=None)
         conteudo.height = dp(150)
 
@@ -124,8 +117,8 @@ class ToDoApp(MDApp):
                 MDRaisedButton(text="Salvar", on_release=lambda x: self.salvar_edicao(item_tarefa)),
                 MDRaisedButton(text="Cancelar", on_release=lambda x: self.dialogo.dismiss())
             ],
-            size_hint=(0.8, None),  
-            height=dp(250)  
+            size_hint=(0.8, None),
+            height=dp(250)
         )
         self.dialogo.open()
 
@@ -146,7 +139,13 @@ class ToDoApp(MDApp):
             item_tarefa.data_tarefa = nova_data
             item_tarefa.atualizar_texto()
 
+            self.cursor.execute("UPDATE tarefas SET texto = ?, data = ? WHERE id = ?", (novo_texto, nova_data, item_tarefa.tarefa_id))
+            self.conn.commit()
+
         self.dialogo.dismiss()
+
+    def on_stop(self):
+        self.conn.close()
 
 if __name__ == "__main__":
     ToDoApp().run()
